@@ -1,0 +1,39 @@
+# Read information from files.
+file = open("StdVec.txt", "r")
+StdVec = readdlm(file)
+close(file)
+
+file = open("MeanVec.txt", "r")
+MeanVec = readdlm(file)
+close(file)
+
+# Define horizontal and vertical lines through theta_star.
+explanatory = n
+xts1 = [min(minimum(MeanVec[2,:]), theta_star[2]), max(maximum(MeanVec[2,:]), theta_star[2])]
+yts1 = [theta_star[1], theta_star[1]]
+
+xts2 = [min(minimum(MeanVec[1,:]), theta_star[1]), max(maximum(MeanVec[1,:]), theta_star[2])]
+yts2 = [theta_star[2], theta_star[2]]
+
+# Plot datapoints like they can be found in the report.
+close()
+colmap = ColorMap("winter")
+subplot(211)
+scatter(MeanVec[1,:], MeanVec[2,:], c = explanatory, cmap = colmap)
+xlabel("theta 1")
+ylabel("theta 2")
+title("Mean of theta 1 vs mean of theta 2 vs n")
+plot( yts1,xts1, label = "Real value theta 1", c = "black" , linestyle = "--")
+plot( xts2,yts2, label = "Real value theta 2", c = "black" , linestyle = "-.")
+legend()
+cb = colorbar()
+cb[:set_label]("n")
+
+subplot(212)
+scatter(StdVec[1,:],StdVec[2,:], c = explanatory, cmap = colmap)
+xlabel("Standard deviation of theta 1")
+ylabel("Standard deviation of theta 2")
+title("SD of theta 1 vs SD of theta2 vs n")
+legend()
+cb = colorbar()
+cb[:set_label]("n")

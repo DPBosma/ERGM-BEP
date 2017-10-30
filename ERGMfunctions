@@ -1,0 +1,150 @@
+# Import all necessary packages.
+using LightGraphs
+using GraphPlot
+using StatsBase
+using Optim
+using PyPlot
+using DataFrames
+
+# Make sure the data, in the form of txt-files, is saved to the right directory.
+if pwd() == "D:\\Documenten\\Studie\\BEP\\ERGM"
+  cd("$(pwd())/Data")
+elseif pwd() == "D:\\Documenten\\Studie\\BEP\\ERGM\\Data"
+else
+  error("Wrong directory")
+end
+
+
+# Function that gives a matrix of means and a matrix of std of theta_1 and theta_2.
+function PlotVarExplanatoryMarkov(numberOfSteps, d, psy, markovit, n, convit, varit)
+  # Create empty mean and std matrix (1).
+  StdVec = zeros(2, numberOfSteps)
+  MeanVec = zeros(2, numberOfSteps)
+
+  # Loop through length of both matrices.
+  for k in 1:numberOfSteps
+    # Create empty vector of [theta_1 theta_2] for sample group of varit elements (2).
+    thetaVec = zeros(2, varit)
+
+    # Loop through all elements of sample group.
+    for i = 1:varit
+      # Create empty vectors of edge and triangles observations (3).
+      edgeObs = zeros(varit)
+      triangleObs = zeros(varit)
+
+      # Loop through all elements of sample group.
+      for j = 1:varit
+        # Create observation-network based on values in theta_star.
+        obs = graphmarkov(d[k], theta_star, 500)
+        # Store edge and triangle observation in observation vectors. (see (3))
+        edgeObs[j] = ne(obs)
+        triangleObs[j] = triangle(obs)
+      end
+
+      # Construct mean observation corresponding to theta_star.
+      edgeObsMean = round(Int, mean(edgeObs))
+      triangleObsMean = round(Int, mean(triangleObs))
+      # Use the method of MCMCMLE to find most likely values for theta_1 and theta_2.
+      theta = find_theta_EdgeTriangle(edgeObsMean, triangleObsMean, markovit[k], n[k], psy[:, k], convit)
+      # Save values to vector. (See (2))
+      thetaVec[:,i] = theta
+    end
+
+    # Calculate and save mean and std to matrices. (see (1))
+    StdVec[1,k] = std(thetaVec[1,:])
+    MeanVec[1,k] = mean(thetaVec[1,:])
+    StdVec[2,k] = std(thetaVec[2,:])
+    MeanVec[2,k] = mean(thetaVec[2,:])
+  end
+
+  # Create function output.
+  return MeanVec, StdVec
+end
+
+
+# Function that uses the method of MCMCMLE to find most likly values for theta_1 and theta_2.
+function find_theta_EdgeTriangle(edgeObsMean, triangleObsMean, markovit, n, psy, convit)
+  # Loop for convit times.
+  for k = 1:convit
+    # Create empty vector of Glauber dynamics outcomes (4).
+    edgeVec = zeros(n)
+    triangleVec = zeros(n)
+
+    # Loop n times.
+    for i=1:n
+      # Use Glauber dynamics to create a sample from the approached distribution.
+      G = graphmarkov(d[k], psy, markovit)
+      # Save observation to vetcors. (see (4))
+      edgeVec[i] = ne(G)
+      triangleVec[i] = triangle(G)
+    end
+
+    # Execute optimalization technique to find root of derivative of log-likelihood function.
+    result = optimize(theta->f12(theta, psy, edgeObsMean, triangleObsMean, edgeVec, triangleVec), [psy[1], psy[2]])
+    psy = result.minimizer
+  end
+
+  # Create function output.
+  return psy
+end
+
+
+# Function that uses Glauber dynamics to create a sample of the approached distribution.
+function graphmarkov(d, psy, it)
+  # Define possible states of edges.
+  samp=[0 1]
+  # Create random starting graph where approximately 50% of the edges exist/are 1.
+  G=Graph(d, Int(floor(d*(d-1)/4)))
+  # Loop through all steps in the Glauber dynamics.
+  for i = 1:it
+    # Choose two random kernels uniformly.
+    j = sample(1:d, 2, replace= false)
+    G0 = copy(G)
+    G1 = copy(G)
+    # Create phantom network by adding and/or removing an edge and calculate amount of triangles.
+    add_edge!(G1,j[1],j[2])
+    rem_edge!(G0,j[1],j[2])
+    TrianG =triangle(G1, j[1], j[2])
+    # Calculate probability for the edge to exist.
+    pedge = 1/(1 + exp(- psy[1] - psy[2]*TrianG))
+    wv = WeightVec([1-pedge, pedge])
+    # sample from 'samp' with probability 'wv'
+    addrem=sample(samp,wv)
+
+    # add or remove the edge following the outcome of 'addrem'.
+    if addrem == 0
+      rem_edge!(G,j[1],j[2])
+    elseif addrem == 1
+      add_edge!(G,j[1],j[2])
+    end
+
+  end
+
+  # Create function output.
+  return G
+end
+
+
+# Function that counts the number of triangles in a network.
+function triangle(G)
+  T = 0
+  for (i,j) in edges(G)
+    T = T + length(common_neighbors(G,i,j))
+  end
+  Int(T/3)
+end
+
+# Function that counts amount of triangles through certain edge.
+function triangle(G,vert1, vert2)
+  T = length(common_neighbors(G,vert1,vert2))
+  Int(T)
+end
+
+# Function that constructs the derivative of the log-likelihood function.
+function f12(theta, psy, edgeObs, triangleObs, edgeVec, triangleVec)
+  loga = 0
+  for i=1:length(edgeVec)
+    loga = loga + exp((theta[1]-psy[1])*edgeVec[i] + (theta[2] - psy[2])*triangleVec[i])
+  end
+  log(exp(-(theta[1] - psy[1])*edgeObs)*exp(-(theta[2] - psy[2])*triangleObs)*(loga/length(edgeVec)))
+end
