@@ -1,21 +1,21 @@
-# Amount of sample groups and number of points to plot.
-numberOfSteps =5
+# Amount of sample groups and number of data points in plot.
+numberOfSteps =15
 # Defining amount of vertices in graph G.
 d=round(Int,linspace(10,10, numberOfSteps))
-# Value for the arbitrary parameter, psy.
+# Value for the arbitrary parameters, psy.
 psy = zeros(2, numberOfSteps)
-psy[1,:] = linspace(0, 0, numberOfSteps) #edges
-psy[2,:] = linspace(0, 0, numberOfSteps) #triangles
-# Amount of markov steps in graphmarkov.
-markovit=round(Int,linspace(50, 50, numberOfSteps))
+psy[1,:] = linspace(0.5,0.5, numberOfSteps) #edges
+psy[2,:] = linspace(0.5,0.5, numberOfSteps) #triangles
+# Amount of Glauber steps in graphmarkov.
+markovit=round(Int,linspace(100, 1000, numberOfSteps))
 # Amount of data to construct empirical expectation.
-n=round(Int,linspace(10, 20, numberOfSteps))
+n=round(Int,linspace(500, 500, numberOfSteps))
 # Amount of iterations for convergence.
 convit = 1
 # Amount of data in each sample group.
 varit = 30
 # Real parameter values.
-theta_star = [0,1]
+theta_star = [0.5,0.5]
 
 
 # Create matrices of means and stds of most likly values of theta_1 and theta_2
